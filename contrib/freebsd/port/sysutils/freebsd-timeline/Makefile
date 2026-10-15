@@ -1,5 +1,6 @@
 PORTNAME=	freebsd-timeline
 DISTVERSION=	0.1.0
+DISTVERSIONPREFIX=	v
 CATEGORIES=	sysutils
 
 MAINTAINER=	you@example.org

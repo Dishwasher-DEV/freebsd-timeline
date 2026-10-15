@@ -84,8 +84,9 @@ freebsd-timeline status
 
 ### Linux (OpenZFS)
 
-Everything except boot environments works with OpenZFS on Linux. Use
-`contrib/linux/freebsd-timelined.service` and put the config in `/etc/freebsd-timeline.toml`.
+Linux with OpenZFS should work for everything except boot environments, but it is
+untested. Use `contrib/linux/freebsd-timelined.service` and put the config in
+`/etc/freebsd-timeline.toml`.
 
 ## Usage
 

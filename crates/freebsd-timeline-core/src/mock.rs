@@ -52,7 +52,12 @@ impl MockBackend {
             ds("zroot/ROOT", None, 20 << 30, None),
             ds("zroot/ROOT/default", Some("/"), 18 << 30, None),
             ds("zroot/home", Some("/home"), 34 << 30, Some("zroot/home")),
-            ds("zroot/home/tom", Some("/home/tom"), 33 << 30, Some("zroot/home")),
+            ds(
+                "zroot/home/tom",
+                Some("/home/tom"),
+                33 << 30,
+                Some("zroot/home"),
+            ),
             ds("zroot/var/log", Some("/var/log"), 200 << 20, None),
         ];
 
@@ -72,7 +77,12 @@ impl MockBackend {
             add("zroot/home", "auto", t, (i as u64 % 5 + 1) * (40 << 20));
             add("zroot/home/tom", "auto", t, (i as u64 % 3 + 1) * (90 << 20));
         }
-        add("zroot/ROOT/default", "pre-upgrade", now - 5 * 86400, 1200 << 20);
+        add(
+            "zroot/ROOT/default",
+            "pre-upgrade",
+            now - 5 * 86400,
+            1200 << 20,
+        );
         add("zroot/home/tom", "manual", now - 2 * 86400 - 1800, 15 << 20);
         add("zroot/ROOT/default", "manual", now - 3600, 2 << 20);
         snapshots.sort_by_key(|s| s.created);
@@ -97,7 +107,12 @@ impl MockBackend {
         ];
 
         MockBackend {
-            state: Mutex::new(State { datasets, snapshots, boot_envs, remote: HashMap::new() }),
+            state: Mutex::new(State {
+                datasets,
+                snapshots,
+                boot_envs,
+                remote: HashMap::new(),
+            }),
         }
     }
 
@@ -122,7 +137,11 @@ impl Backend for MockBackend {
         Ok(st
             .snapshots
             .iter()
-            .filter(|s| dataset.map_or(true, |d| s.dataset == d || s.dataset.starts_with(&format!("{d}/"))))
+            .filter(|s| {
+                dataset.map_or(true, |d| {
+                    s.dataset == d || s.dataset.starts_with(&format!("{d}/"))
+                })
+            })
             .cloned()
             .collect())
     }
@@ -134,18 +153,33 @@ impl Backend for MockBackend {
         let targets: Vec<String> = st
             .datasets
             .iter()
-            .filter(|d| d.name == dataset || (recursive && d.name.starts_with(&format!("{dataset}/"))))
+            .filter(|d| {
+                d.name == dataset || (recursive && d.name.starts_with(&format!("{dataset}/")))
+            })
             .map(|d| d.name.clone())
             .collect();
         if targets.is_empty() {
             return Err(not_found(dataset));
         }
-        if st.snapshots.iter().any(|s| targets.contains(&s.dataset) && s.name == name) {
-            return Err(Error::new(ErrorKind::Command, format!("{dataset}@{name}: dataset already exists")));
+        if st
+            .snapshots
+            .iter()
+            .any(|s| targets.contains(&s.dataset) && s.name == name)
+        {
+            return Err(Error::new(
+                ErrorKind::Command,
+                format!("{dataset}@{name}: dataset already exists"),
+            ));
         }
         let now = time::now();
         for t in targets {
-            st.snapshots.push(Snapshot { dataset: t, name: name.into(), created: now, used: 0, referenced: 30 << 30 });
+            st.snapshots.push(Snapshot {
+                dataset: t,
+                name: name.into(),
+                created: now,
+                used: 0,
+                referenced: 30 << 30,
+            });
         }
         Ok(())
     }
@@ -155,7 +189,8 @@ impl Backend for MockBackend {
         let mut st = self.state();
         let before = st.snapshots.len();
         st.snapshots.retain(|s| {
-            let matches_ds = s.dataset == dataset || (recursive && s.dataset.starts_with(&format!("{dataset}/")));
+            let matches_ds = s.dataset == dataset
+                || (recursive && s.dataset.starts_with(&format!("{dataset}/")));
             !(matches_ds && s.name == name)
         });
         if st.snapshots.len() == before {
@@ -173,14 +208,19 @@ impl Backend for MockBackend {
             .find(|s| s.dataset == dataset && s.name == name)
             .map(|s| s.created)
             .ok_or_else(|| not_found(full))?;
-        let newer = st.snapshots.iter().filter(|s| s.dataset == dataset && s.created > created).count();
+        let newer = st
+            .snapshots
+            .iter()
+            .filter(|s| s.dataset == dataset && s.created > created)
+            .count();
         if newer > 0 && !destroy_newer {
             return Err(Error::new(
                 ErrorKind::Refused,
                 format!("cannot rollback to {full}: {newer} more recent snapshot(s) exist (use destroy_newer)"),
             ));
         }
-        st.snapshots.retain(|s| !(s.dataset == dataset && s.created > created));
+        st.snapshots
+            .retain(|s| !(s.dataset == dataset && s.created > created));
         Ok(())
     }
 
@@ -195,9 +235,21 @@ impl Backend for MockBackend {
             .unwrap_or_else(|| format!("/{dataset}"));
         let p = |rel: &str| format!("{mount}/{rel}");
         Ok(vec![
-            DiffEntry { change: Change::Modified, path: p(".config/hypr/hyprland.conf"), new_path: None },
-            DiffEntry { change: Change::Added, path: p("Pictures/rice-v3.png"), new_path: None },
-            DiffEntry { change: Change::Removed, path: p("notes/old-todo.md"), new_path: None },
+            DiffEntry {
+                change: Change::Modified,
+                path: p(".config/hypr/hyprland.conf"),
+                new_path: None,
+            },
+            DiffEntry {
+                change: Change::Added,
+                path: p("Pictures/rice-v3.png"),
+                new_path: None,
+            },
+            DiffEntry {
+                change: Change::Removed,
+                path: p("notes/old-todo.md"),
+                new_path: None,
+            },
             DiffEntry {
                 change: Change::Renamed,
                 path: p("projects/freebsd-timeline-draft"),
@@ -212,17 +264,32 @@ impl Backend for MockBackend {
 
     fn unmount(&self, dataset: &str) -> Result<()> {
         let mut st = self.state();
-        let d = st.datasets.iter_mut().find(|d| d.name == dataset).ok_or_else(|| not_found(dataset))?;
+        let d = st
+            .datasets
+            .iter_mut()
+            .find(|d| d.name == dataset)
+            .ok_or_else(|| not_found(dataset))?;
         d.mounted = false;
         Ok(())
     }
 
     fn unload_key(&self, dataset: &str) -> Result<()> {
         let mut st = self.state();
-        if st.datasets.iter().any(|d| d.encryption_root.as_deref() == Some(dataset) && d.mounted) {
-            return Err(Error::new(ErrorKind::Command, format!("{dataset}: datasets are still mounted")));
+        if st
+            .datasets
+            .iter()
+            .any(|d| d.encryption_root.as_deref() == Some(dataset) && d.mounted)
+        {
+            return Err(Error::new(
+                ErrorKind::Command,
+                format!("{dataset}: datasets are still mounted"),
+            ));
         }
-        for d in st.datasets.iter_mut().filter(|d| d.encryption_root.as_deref() == Some(dataset)) {
+        for d in st
+            .datasets
+            .iter_mut()
+            .filter(|d| d.encryption_root.as_deref() == Some(dataset))
+        {
             d.key_loaded = false;
         }
         Ok(())
@@ -230,10 +297,17 @@ impl Backend for MockBackend {
 
     fn load_key(&self, dataset: &str, passphrase: &str) -> Result<()> {
         if passphrase != "freebsd-timeline" {
-            return Err(Error::new(ErrorKind::Command, "incorrect key provided (mock passphrase is \"freebsd-timeline\")"));
+            return Err(Error::new(
+                ErrorKind::Command,
+                "incorrect key provided (mock passphrase is \"freebsd-timeline\")",
+            ));
         }
         let mut st = self.state();
-        for d in st.datasets.iter_mut().filter(|d| d.encryption_root.as_deref() == Some(dataset)) {
+        for d in st
+            .datasets
+            .iter_mut()
+            .filter(|d| d.encryption_root.as_deref() == Some(dataset))
+        {
             d.key_loaded = true;
         }
         Ok(())
@@ -261,7 +335,10 @@ impl Backend for MockBackend {
         names::validate_boot_env(name)?;
         let mut st = self.state();
         if st.boot_envs.iter().any(|b| b.name == name) {
-            return Err(Error::new(ErrorKind::Command, format!("boot environment {name} already exists")));
+            return Err(Error::new(
+                ErrorKind::Command,
+                format!("boot environment {name} already exists"),
+            ));
         }
         st.boot_envs.push(BootEnv {
             name: name.into(),
@@ -287,9 +364,16 @@ impl Backend for MockBackend {
 
     fn destroy_boot_env(&self, name: &str) -> Result<()> {
         let mut st = self.state();
-        let be = st.boot_envs.iter().find(|b| b.name == name).ok_or_else(|| not_found(name))?;
+        let be = st
+            .boot_envs
+            .iter()
+            .find(|b| b.name == name)
+            .ok_or_else(|| not_found(name))?;
         if be.active_now || be.active_on_reboot {
-            return Err(Error::new(ErrorKind::Refused, format!("{name} is active and cannot be destroyed")));
+            return Err(Error::new(
+                ErrorKind::Refused,
+                format!("{name} is active and cannot be destroyed"),
+            ));
         }
         st.boot_envs.retain(|b| b.name != name);
         Ok(())
@@ -312,7 +396,13 @@ impl Backend for MockBackend {
         Ok(self.state().remote.get(dest).cloned().unwrap_or_default())
     }
 
-    fn send_snapshot(&self, full: &str, base: Option<&str>, target: &str, dest: &str) -> Result<()> {
+    fn send_snapshot(
+        &self,
+        full: &str,
+        base: Option<&str>,
+        target: &str,
+        dest: &str,
+    ) -> Result<()> {
         names::validate_ssh_target(target)?;
         let (_, name) = names::split_snapshot(full)?;
         let mut st = self.state();
@@ -320,7 +410,10 @@ impl Backend for MockBackend {
         if let Some(base) = base {
             let (_, base_name) = names::split_snapshot(base)?;
             if !remote.iter().any(|r| r == base_name) {
-                return Err(Error::new(ErrorKind::Command, "incremental source does not exist on target"));
+                return Err(Error::new(
+                    ErrorKind::Command,
+                    "incremental source does not exist on target",
+                ));
             }
         }
         remote.push(name.to_string());
@@ -336,11 +429,18 @@ mod tests {
     fn rollback_needs_destroy_newer() {
         let m = MockBackend::new();
         let snaps = m.list_snapshots(Some("zroot/home")).unwrap();
-        let oldest = snaps.iter().find(|s| s.dataset == "zroot/home").unwrap().full_name();
+        let oldest = snaps
+            .iter()
+            .find(|s| s.dataset == "zroot/home")
+            .unwrap()
+            .full_name();
         assert!(m.rollback(&oldest, false).is_err());
         m.rollback(&oldest, true).unwrap();
         let after = m.list_snapshots(Some("zroot/home")).unwrap();
-        assert_eq!(after.iter().filter(|s| s.dataset == "zroot/home").count(), 1);
+        assert_eq!(
+            after.iter().filter(|s| s.dataset == "zroot/home").count(),
+            1
+        );
     }
 
     #[test]

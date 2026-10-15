@@ -26,7 +26,10 @@ type BoxResult<T> = Result<T, Box<dyn std::error::Error>>;
 const GROUP: &str = "freebsd-timeline";
 
 fn log(msg: &str) {
-    eprintln!("{} freebsd-timelined: {msg}", time::Utc::from_epoch(time::now()).human());
+    eprintln!(
+        "{} freebsd-timelined: {msg}",
+        time::Utc::from_epoch(time::now()).human()
+    );
 }
 
 fn usage() {
@@ -56,7 +59,11 @@ fn main() {
         }
         Some("--check-config") => match Config::load(&config_path) {
             Ok(cfg) => {
-                println!("{}: ok, {} dataset(s)", config_path.display(), cfg.dataset.len());
+                println!(
+                    "{}: ok, {} dataset(s)",
+                    config_path.display(),
+                    cfg.dataset.len()
+                );
                 return;
             }
             Err(e) => {
@@ -94,7 +101,11 @@ fn run(config_path: &Path) -> BoxResult<()> {
         config_path.display()
     ));
 
-    let tick = std::env::var("FREEBSD_TIMELINE_TICK").ok().and_then(|v| v.parse().ok()).unwrap_or(60u64).max(5);
+    let tick = std::env::var("FREEBSD_TIMELINE_TICK")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(60u64)
+        .max(5);
     {
         let service = Arc::clone(&service);
         let config_path = config_path.to_path_buf();
@@ -127,7 +138,10 @@ fn scheduler(service: &Service, config_path: &Path, every: Duration) {
             seen = current;
             match Config::load(config_path) {
                 Ok(cfg) => {
-                    log(&format!("reloaded config ({} dataset(s))", cfg.dataset.len()));
+                    log(&format!(
+                        "reloaded config ({} dataset(s))",
+                        cfg.dataset.len()
+                    ));
                     service.set_config(cfg);
                 }
                 Err(e) => log(&format!("config change ignored: {e}")),
@@ -153,7 +167,11 @@ fn group_id(name: &str) -> Option<u32> {
 fn bind(path: &Path) -> BoxResult<UnixListener> {
     if path.exists() {
         if UnixStream::connect(path).is_ok() {
-            return Err(format!("another freebsd-timelined is already listening on {}", path.display()).into());
+            return Err(format!(
+                "another freebsd-timelined is already listening on {}",
+                path.display()
+            )
+            .into());
         }
         std::fs::remove_file(path)?; // stale socket from a crash
     }
@@ -167,9 +185,13 @@ fn bind(path: &Path) -> BoxResult<UnixListener> {
                 std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o660))?;
                 log(&format!("socket open to group '{GROUP}'"));
             }
-            Err(e) => log(&format!("could not hand socket to group '{GROUP}' ({e}); owner-only access")),
+            Err(e) => log(&format!(
+                "could not hand socket to group '{GROUP}' ({e}); owner-only access"
+            )),
         },
-        None => log(&format!("no '{GROUP}' group; socket is owner-only (pw groupadd {GROUP} to share it)")),
+        None => log(&format!(
+            "no '{GROUP}' group; socket is owner-only (pw groupadd {GROUP} to share it)"
+        )),
     }
     Ok(listener)
 }

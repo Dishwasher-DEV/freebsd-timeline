@@ -7,14 +7,20 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use freebsd_timeline_core::client::Client;
-use freebsd_timeline_core::model::{ActionResult, BootEnv, Dataset, DiffEntry, PoolHealth, Snapshot, Status};
+use freebsd_timeline_core::model::{
+    ActionResult, BootEnv, Dataset, DiffEntry, PoolHealth, Snapshot, Status,
+};
 use freebsd_timeline_core::protocol::Request;
 use freebsd_timeline_core::retention::PrunePlan;
 use freebsd_timeline_core::time::{self, relative};
 use freebsd_timeline_core::util::human_size;
 
 #[derive(Parser)]
-#[command(name = "freebsd-timeline", version, about = "ZFS snapshots, boot environments and backups")]
+#[command(
+    name = "freebsd-timeline",
+    version,
+    about = "ZFS snapshots, boot environments and backups"
+)]
 struct Cli {
     /// Path to the freebsd-timelined socket (default: $FREEBSD_TIMELINE_SOCKET or /var/run/freebsd-timelined.sock)
     #[arg(long, global = true)]
@@ -125,7 +131,10 @@ struct App {
 }
 
 impl App {
-    fn call<T: DeserializeOwned + Serialize>(&self, req: Request) -> Result<T, Box<dyn std::error::Error>> {
+    fn call<T: DeserializeOwned + Serialize>(
+        &self,
+        req: Request,
+    ) -> Result<T, Box<dyn std::error::Error>> {
         Ok(self.client.call::<T>(&req)?)
     }
 
@@ -160,7 +169,12 @@ fn print_results(results: &[ActionResult]) -> bool {
     let mut all_ok = true;
     for r in results {
         all_ok &= r.ok;
-        println!("{} {}: {}", if r.ok { "ok  " } else { "FAIL" }, r.target, r.message);
+        println!(
+            "{} {}: {}",
+            if r.ok { "ok  " } else { "FAIL" },
+            r.target,
+            r.message
+        );
     }
     if results.is_empty() {
         println!("nothing to do");
@@ -172,7 +186,12 @@ fn print_snapshots(snaps: &[Snapshot]) {
     let now = time::now();
     println!("{:<12} {:>8}  SNAPSHOT", "CREATED", "USED");
     for s in snaps {
-        println!("{:<12} {:>8}  {}", relative(s.created, now), human_size(s.used), s.full_name());
+        println!(
+            "{:<12} {:>8}  {}",
+            relative(s.created, now),
+            human_size(s.used),
+            s.full_name()
+        );
     }
 }
 
@@ -186,17 +205,45 @@ fn run(cli: Cli) -> CliResult {
         Cmd::Status => {
             let st: Status = app.call(Request::Status)?;
             if app.json_out(&st) {
-                println!("freebsd-timeline {} (daemon backend: {})", st.version, st.backend);
-                let last = st.last_snapshot.map_or("never".into(), |t| relative(t, time::now()));
-                println!("snapshots  {} total, {} by freebsd-timeline, last {}", st.snapshots, st.managed, last);
+                println!(
+                    "freebsd-timeline {} (daemon backend: {})",
+                    st.version, st.backend
+                );
+                let last = st
+                    .last_snapshot
+                    .map_or("never".into(), |t| relative(t, time::now()));
+                println!(
+                    "snapshots  {} total, {} by freebsd-timeline, last {}",
+                    st.snapshots, st.managed, last
+                );
                 println!(
                     "watching   {}",
-                    if st.watched.is_empty() { "nothing (see freebsd-timeline.toml)".into() } else { st.watched.join(", ") }
+                    if st.watched.is_empty() {
+                        "nothing (see freebsd-timeline.toml)".into()
+                    } else {
+                        st.watched.join(", ")
+                    }
                 );
-                println!("backup     {}", st.backup_target.as_deref().unwrap_or("not configured"));
-                println!("boot envs  {}", if st.boot_envs_supported { "supported" } else { "unsupported (no bectl)" });
+                println!(
+                    "backup     {}",
+                    st.backup_target.as_deref().unwrap_or("not configured")
+                );
+                println!(
+                    "boot envs  {}",
+                    if st.boot_envs_supported {
+                        "supported"
+                    } else {
+                        "unsupported (no bectl)"
+                    }
+                );
                 for p in &st.pools {
-                    println!("pool       {} {} ({} of {} used)", p.name, p.health, human_size(p.alloc), human_size(p.size));
+                    println!(
+                        "pool       {} {} ({} of {} used)",
+                        p.name,
+                        p.health,
+                        human_size(p.alloc),
+                        human_size(p.size)
+                    );
                 }
             }
         }
@@ -209,23 +256,58 @@ fn run(cli: Cli) -> CliResult {
                 print_snapshots(&snaps);
             }
         }
-        Cmd::Snap { dataset, label, recursive } => {
-            let name: String = app.call(Request::CreateSnapshot { dataset, label, recursive })?;
+        Cmd::Snap {
+            dataset,
+            label,
+            recursive,
+        } => {
+            let name: String = app.call(Request::CreateSnapshot {
+                dataset,
+                label,
+                recursive,
+            })?;
             if app.json_out(&name) {
                 println!("created {name}");
             }
         }
-        Cmd::Destroy { snapshot, recursive, yes } => {
-            confirm(&format!("Destroy {snapshot}{}?", if recursive { " and its children" } else { "" }), yes)?;
-            let name: String = app.call(Request::DestroySnapshot { snapshot, recursive })?;
+        Cmd::Destroy {
+            snapshot,
+            recursive,
+            yes,
+        } => {
+            confirm(
+                &format!(
+                    "Destroy {snapshot}{}?",
+                    if recursive { " and its children" } else { "" }
+                ),
+                yes,
+            )?;
+            let name: String = app.call(Request::DestroySnapshot {
+                snapshot,
+                recursive,
+            })?;
             if app.json_out(&name) {
                 println!("destroyed {name}");
             }
         }
-        Cmd::Rollback { snapshot, destroy_newer, yes } => {
-            let warn = if destroy_newer { " Newer snapshots will be destroyed." } else { "" };
-            confirm(&format!("Roll back to {snapshot}? Changes since then are lost.{warn}"), yes)?;
-            let name: String = app.call(Request::Rollback { snapshot, destroy_newer })?;
+        Cmd::Rollback {
+            snapshot,
+            destroy_newer,
+            yes,
+        } => {
+            let warn = if destroy_newer {
+                " Newer snapshots will be destroyed."
+            } else {
+                ""
+            };
+            confirm(
+                &format!("Roll back to {snapshot}? Changes since then are lost.{warn}"),
+                yes,
+            )?;
+            let name: String = app.call(Request::Rollback {
+                snapshot,
+                destroy_newer,
+            })?;
             if app.json_out(&name) {
                 println!("rolled back to {name}");
             }
@@ -252,7 +334,13 @@ fn run(cli: Cli) -> CliResult {
                             if b.active_now { "N" } else { "" },
                             if b.active_on_reboot { "R" } else { "" }
                         );
-                        println!("{:<28} {:<7} {:>8}  {}", b.name, if flags.is_empty() { "-" } else { &flags }, b.space, b.created);
+                        println!(
+                            "{:<28} {:<7} {:>8}  {}",
+                            b.name,
+                            if flags.is_empty() { "-" } else { &flags },
+                            b.space,
+                            b.created
+                        );
                     }
                 }
             }
@@ -265,7 +353,10 @@ fn run(cli: Cli) -> CliResult {
             BeCmd::Activate { name, temporary } => {
                 let name: String = app.call(Request::ActivateBootEnv { name, temporary })?;
                 if app.json_out(&name) {
-                    println!("{name} will be used on {} boot", if temporary { "the next" } else { "every" });
+                    println!(
+                        "{name} will be used on {} boot",
+                        if temporary { "the next" } else { "every" }
+                    );
                 }
             }
             BeCmd::Destroy { name, yes } => {
@@ -280,7 +371,13 @@ fn run(cli: Cli) -> CliResult {
             let pools: Vec<PoolHealth> = app.call(Request::PoolHealth)?;
             if app.json_out(&pools) {
                 for p in &pools {
-                    println!("{}  {}  {} used, {} free", p.name, p.health, human_size(p.alloc), human_size(p.free));
+                    println!(
+                        "{}  {}  {} used, {} free",
+                        p.name,
+                        p.health,
+                        human_size(p.alloc),
+                        human_size(p.free)
+                    );
                     if let Some(scan) = &p.scan {
                         println!("  scan:   {scan}");
                     }
@@ -293,7 +390,10 @@ fn run(cli: Cli) -> CliResult {
         Cmd::Datasets => {
             let ds: Vec<Dataset> = app.call(Request::ListDatasets)?;
             if app.json_out(&ds) {
-                println!("{:<28} {:>8} {:>8}  {:<10} MOUNTPOINT", "NAME", "USED", "AVAIL", "KEY");
+                println!(
+                    "{:<28} {:>8} {:>8}  {:<10} MOUNTPOINT",
+                    "NAME", "USED", "AVAIL", "KEY"
+                );
                 for d in &ds {
                     let key = match (d.encrypted, d.key_loaded) {
                         (false, _) => "-",
@@ -315,7 +415,11 @@ fn run(cli: Cli) -> CliResult {
             if dry_run {
                 let plan: PrunePlan = app.call(Request::PrunePlan)?;
                 if app.json_out(&plan) {
-                    println!("would destroy {} snapshot(s), keep {}", plan.destroy.len(), plan.keep.len());
+                    println!(
+                        "would destroy {} snapshot(s), keep {}",
+                        plan.destroy.len(),
+                        plan.keep.len()
+                    );
                     print_snapshots(&plan.destroy);
                 }
             } else {
@@ -339,15 +443,23 @@ fn run(cli: Cli) -> CliResult {
         }
         Cmd::Unlock { dataset } => {
             let passphrase = rpassword::prompt_password(format!("Passphrase for {dataset}: "))?;
-            let name: String = app.call(Request::Unlock { dataset, passphrase })?;
+            let name: String = app.call(Request::Unlock {
+                dataset,
+                passphrase,
+            })?;
             if app.json_out(&name) {
                 println!("unlocked {name}");
             }
         }
         Cmd::Guard { label, command } => {
             let be: String = app
-                .call(Request::CreateBootEnv { name: None, label: Some(label) })
-                .map_err(|e| format!("could not create a boot environment, not running the command: {e}"))?;
+                .call(Request::CreateBootEnv {
+                    name: None,
+                    label: Some(label),
+                })
+                .map_err(|e| {
+                    format!("could not create a boot environment, not running the command: {e}")
+                })?;
             eprintln!("freebsd-timeline: created boot environment {be}");
             let status = Command::new(&command[0]).args(&command[1..]).status()?;
             if !status.success() {
@@ -397,7 +509,9 @@ mod tests {
     fn hints_match_real_zfs_and_ssh_errors() {
         let rollback = "cannot rollback to 'a@b': more recent snapshots or bookmarks exist";
         assert!(hint(rollback).unwrap().contains("--destroy-newer"));
-        assert!(hint("Host key verification failed.").unwrap().contains("host key"));
+        assert!(hint("Host key verification failed.")
+            .unwrap()
+            .contains("host key"));
         assert!(hint("something unrelated").is_none());
     }
 }

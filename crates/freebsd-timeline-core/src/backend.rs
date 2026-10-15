@@ -39,7 +39,8 @@ pub trait Backend: Send + Sync {
     /// Snapshot names (the part after `@`) that exist on the backup target.
     fn remote_snapshots(&self, target: &str, dest: &str) -> Result<Vec<String>>;
     /// Raw (`-w`) send, so encrypted datasets stay encrypted on the target.
-    fn send_snapshot(&self, full: &str, base: Option<&str>, target: &str, dest: &str) -> Result<()>;
+    fn send_snapshot(&self, full: &str, base: Option<&str>, target: &str, dest: &str)
+        -> Result<()>;
 }
 
 pub struct ZfsBackend;
@@ -47,7 +48,11 @@ pub struct ZfsBackend;
 fn command_error(prog: &str, args: &[&str], stderr: &[u8]) -> Error {
     Error::new(
         ErrorKind::Command,
-        format!("{prog} {}: {}", args.join(" "), String::from_utf8_lossy(stderr).trim()),
+        format!(
+            "{prog} {}: {}",
+            args.join(" "),
+            String::from_utf8_lossy(stderr).trim()
+        ),
     )
 }
 
@@ -90,7 +95,15 @@ impl Backend for ZfsBackend {
     }
 
     fn list_snapshots(&self, dataset: Option<&str>) -> Result<Vec<Snapshot>> {
-        let mut args = vec!["list", "-H", "-p", "-t", "snapshot", "-o", "name,creation,used,referenced"];
+        let mut args = vec![
+            "list",
+            "-H",
+            "-p",
+            "-t",
+            "snapshot",
+            "-o",
+            "name,creation,used,referenced",
+        ];
         if let Some(ds) = dataset {
             names::validate_dataset(ds)?;
             args.extend(["-r", ds]);
@@ -151,7 +164,12 @@ impl Backend for ZfsBackend {
         parse::datasets(&run(
             "zfs",
             &[
-                "list", "-H", "-p", "-t", "filesystem", "-o",
+                "list",
+                "-H",
+                "-p",
+                "-t",
+                "filesystem",
+                "-o",
                 "name,used,avail,mountpoint,encryption,encryptionroot,keystatus,mounted",
             ],
         )?)
@@ -182,7 +200,10 @@ impl Backend for ZfsBackend {
 
     fn list_boot_envs(&self) -> Result<Vec<BootEnv>> {
         if !self.boot_envs_supported() {
-            return Err(Error::new(ErrorKind::Unsupported, "boot environments need bectl (FreeBSD)"));
+            return Err(Error::new(
+                ErrorKind::Unsupported,
+                "boot environments need bectl (FreeBSD)",
+            ));
         }
         parse::boot_envs(&run("bectl", &["list", "-H"])?)
     }
@@ -208,7 +229,10 @@ impl Backend for ZfsBackend {
     }
 
     fn pool_health(&self) -> Result<Vec<PoolHealth>> {
-        let mut pools = parse::pools(&run("zpool", &["list", "-H", "-p", "-o", "name,size,alloc,free,health"])?)?;
+        let mut pools = parse::pools(&run(
+            "zpool",
+            &["list", "-H", "-p", "-o", "name,size,alloc,free,health"],
+        )?)?;
         for pool in &mut pools {
             if let Ok(out) = run("zpool", &["status", &pool.name]) {
                 let (scan, errors) = parse::pool_status(&out);
@@ -223,7 +247,9 @@ impl Backend for ZfsBackend {
         names::validate_ssh_target(target)?;
         names::validate_dataset(dest)?;
         let mut args: Vec<&str> = SSH_OPTS.to_vec();
-        args.extend(["--", target, "zfs", "list", "-H", "-o", "name", "-t", "snapshot", "-d", "1", dest]);
+        args.extend([
+            "--", target, "zfs", "list", "-H", "-o", "name", "-t", "snapshot", "-d", "1", dest,
+        ]);
         match run("ssh", &args) {
             Ok(out) => Ok(out
                 .lines()
@@ -235,7 +261,13 @@ impl Backend for ZfsBackend {
         }
     }
 
-    fn send_snapshot(&self, full: &str, base: Option<&str>, target: &str, dest: &str) -> Result<()> {
+    fn send_snapshot(
+        &self,
+        full: &str,
+        base: Option<&str>,
+        target: &str,
+        dest: &str,
+    ) -> Result<()> {
         names::split_snapshot(full)?;
         names::validate_ssh_target(target)?;
         names::validate_dataset(dest)?;

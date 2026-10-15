@@ -13,7 +13,9 @@ use crate::protocol::{Request, Response};
 pub const DEFAULT_SOCKET: &str = "/var/run/freebsd-timelined.sock";
 
 pub fn default_socket() -> PathBuf {
-    std::env::var_os("FREEBSD_TIMELINE_SOCKET").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(DEFAULT_SOCKET))
+    std::env::var_os("FREEBSD_TIMELINE_SOCKET")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(DEFAULT_SOCKET))
 }
 
 #[derive(Debug, Clone)]
@@ -23,7 +25,9 @@ pub struct Client {
 
 impl Default for Client {
     fn default() -> Self {
-        Client { socket: default_socket() }
+        Client {
+            socket: default_socket(),
+        }
     }
 }
 
@@ -44,21 +48,35 @@ impl Client {
         })?;
         // Backups and pool scans can take a while.
         stream.set_read_timeout(Some(Duration::from_secs(3600)))?;
-        let mut line = serde_json::to_string(req).map_err(|e| Error::new(ErrorKind::Protocol, e.to_string()))?;
+        let mut line = serde_json::to_string(req)
+            .map_err(|e| Error::new(ErrorKind::Protocol, e.to_string()))?;
         line.push('\n');
         stream.write_all(line.as_bytes())?;
         stream.flush()?;
 
         let mut reply = String::new();
         BufReader::new(stream).read_line(&mut reply)?;
-        serde_json::from_str(&reply).map_err(|e| Error::new(ErrorKind::Protocol, format!("bad reply from freebsd-timelined: {e}")))
+        serde_json::from_str(&reply).map_err(|e| {
+            Error::new(
+                ErrorKind::Protocol,
+                format!("bad reply from freebsd-timelined: {e}"),
+            )
+        })
     }
 
     pub fn call<T: DeserializeOwned>(&self, req: &Request) -> Result<T> {
         let resp = self.call_raw(req)?;
         if !resp.ok {
-            return Err(Error::new(ErrorKind::Command, resp.error.unwrap_or_else(|| "unknown error".into())));
+            return Err(Error::new(
+                ErrorKind::Command,
+                resp.error.unwrap_or_else(|| "unknown error".into()),
+            ));
         }
-        serde_json::from_value(resp.data).map_err(|e| Error::new(ErrorKind::Protocol, format!("bad reply from freebsd-timelined: {e}")))
+        serde_json::from_value(resp.data).map_err(|e| {
+            Error::new(
+                ErrorKind::Protocol,
+                format!("bad reply from freebsd-timelined: {e}"),
+            )
+        })
     }
 }

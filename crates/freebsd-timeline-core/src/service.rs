@@ -28,14 +28,25 @@ fn json(v: impl Serialize) -> Result<Value> {
 
 fn action(target: &str, r: Result<String>) -> ActionResult {
     match r {
-        Ok(message) => ActionResult { target: target.into(), ok: true, message },
-        Err(e) => ActionResult { target: target.into(), ok: false, message: e.message },
+        Ok(message) => ActionResult {
+            target: target.into(),
+            ok: true,
+            message,
+        },
+        Err(e) => ActionResult {
+            target: target.into(),
+            ok: false,
+            message: e.message,
+        },
     }
 }
 
 impl Service {
     pub fn new(backend: Box<dyn Backend>, config: Config) -> Self {
-        Service { backend, config: RwLock::new(config) }
+        Service {
+            backend,
+            config: RwLock::new(config),
+        }
     }
 
     pub fn backend(&self) -> &dyn Backend {
@@ -43,7 +54,10 @@ impl Service {
     }
 
     pub fn config(&self) -> Config {
-        self.config.read().unwrap_or_else(|e| e.into_inner()).clone()
+        self.config
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     pub fn set_config(&self, cfg: Config) {
@@ -52,7 +66,11 @@ impl Service {
 
     pub fn handle(&self, req: Request) -> Response {
         match self.dispatch(req) {
-            Ok(v) => Response { ok: true, data: v, error: None },
+            Ok(v) => Response {
+                ok: true,
+                data: v,
+                error: None,
+            },
             Err(e) => Response::err(e.message),
         }
     }
@@ -63,21 +81,34 @@ impl Service {
         match req {
             Request::Status => json(self.status()?),
             Request::ListSnapshots { dataset } => json(b.list_snapshots(dataset.as_deref())?),
-            Request::CreateSnapshot { dataset, label, recursive } => {
+            Request::CreateSnapshot {
+                dataset,
+                label,
+                recursive,
+            } => {
                 let label = label.unwrap_or_else(|| "manual".into());
                 names::validate_label(&label)?;
                 if label == names::AUTO_LABEL {
-                    return Err(Error::new(ErrorKind::Refused, "the label 'auto' is reserved for scheduled snapshots"));
+                    return Err(Error::new(
+                        ErrorKind::Refused,
+                        "the label 'auto' is reserved for scheduled snapshots",
+                    ));
                 }
                 let name = names::managed_name(&label, now);
                 b.create_snapshot(&dataset, &name, recursive)?;
                 json(format!("{dataset}@{name}"))
             }
-            Request::DestroySnapshot { snapshot, recursive } => {
+            Request::DestroySnapshot {
+                snapshot,
+                recursive,
+            } => {
                 b.destroy_snapshot(&snapshot, recursive)?;
                 json(snapshot)
             }
-            Request::Rollback { snapshot, destroy_newer } => {
+            Request::Rollback {
+                snapshot,
+                destroy_newer,
+            } => {
                 b.rollback(&snapshot, destroy_newer)?;
                 json(snapshot)
             }
@@ -109,7 +140,10 @@ impl Service {
             Request::Prune => json(self.prune(now)?),
             Request::Backup { dataset } => json(self.backup(dataset)?),
             Request::LockAll => json(self.lock_all()?),
-            Request::Unlock { dataset, passphrase } => {
+            Request::Unlock {
+                dataset,
+                passphrase,
+            } => {
                 names::validate_dataset(&dataset)?;
                 b.load_key(&dataset, &passphrase)?;
                 b.mount_all()?;
@@ -128,10 +162,17 @@ impl Service {
             watched: cfg.dataset.iter().map(|d| d.name.clone()).collect(),
             snapshots: snaps.len(),
             managed: snaps.iter().filter(|s| s.is_managed()).count(),
-            last_snapshot: snaps.iter().filter(|s| s.is_managed()).map(|s| s.created).max(),
+            last_snapshot: snaps
+                .iter()
+                .filter(|s| s.is_managed())
+                .map(|s| s.created)
+                .max(),
             pools: b.pool_health().unwrap_or_default(),
             boot_envs_supported: b.boot_envs_supported(),
-            backup_target: cfg.backup.as_ref().map(|bk| format!("{}:{}", bk.target, bk.dest)),
+            backup_target: cfg
+                .backup
+                .as_ref()
+                .map(|bk| format!("{}:{}", bk.target, bk.dest)),
         })
     }
 
@@ -161,7 +202,12 @@ impl Service {
             .map(|s| {
                 let recursive = cfg.policy(&s.dataset).is_some_and(|p| p.recursive);
                 let full = s.full_name();
-                action(&full, self.backend().destroy_snapshot(&full, recursive).map(|_| "destroyed".into()))
+                action(
+                    &full,
+                    self.backend()
+                        .destroy_snapshot(&full, recursive)
+                        .map(|_| "destroyed".into()),
+                )
             })
             .collect())
     }
@@ -183,7 +229,10 @@ impl Service {
                     if rep.up_to_date {
                         format!("already up to date ({})", rep.snapshot)
                     } else if let Some(base) = rep.base {
-                        format!("sent {} incrementally from {base} to {}", rep.snapshot, rep.destination)
+                        format!(
+                            "sent {} incrementally from {base} to {}",
+                            rep.snapshot, rep.destination
+                        )
                     } else {
                         format!("sent {} (full) to {}", rep.snapshot, rep.destination)
                     }
@@ -200,16 +249,26 @@ impl Service {
         let datasets = b.list_datasets()?;
         let roots: Vec<String> = datasets
             .iter()
-            .filter(|d| d.encrypted && d.key_loaded && d.encryption_root.as_deref() == Some(d.name.as_str()))
+            .filter(|d| {
+                d.encrypted && d.key_loaded && d.encryption_root.as_deref() == Some(d.name.as_str())
+            })
             .map(|d| d.name.clone())
             .collect();
 
         let mut results = Vec::new();
         for root in roots {
-            let mut members: Vec<_> =
-                datasets.iter().filter(|d| d.encryption_root.as_deref() == Some(root.as_str())).collect();
+            let mut members: Vec<_> = datasets
+                .iter()
+                .filter(|d| d.encryption_root.as_deref() == Some(root.as_str()))
+                .collect();
             if members.iter().any(|d| d.mountpoint.as_deref() == Some("/")) {
-                results.push(action(&root, Err(Error::new(ErrorKind::Refused, "holds the root filesystem, skipped"))));
+                results.push(action(
+                    &root,
+                    Err(Error::new(
+                        ErrorKind::Refused,
+                        "holds the root filesystem, skipped",
+                    )),
+                ));
                 continue;
             }
             members.sort_by_key(|d| std::cmp::Reverse(d.name.len())); // children first
@@ -242,7 +301,11 @@ impl Service {
                 }
             };
             let last = match b.list_snapshots(Some(&policy.name)) {
-                Ok(s) => s.iter().filter(|s| s.dataset == policy.name && s.is_auto()).map(|s| s.created).max(),
+                Ok(s) => s
+                    .iter()
+                    .filter(|s| s.dataset == policy.name && s.is_auto())
+                    .map(|s| s.created)
+                    .max(),
                 Err(e) => {
                     log.push(format!("{}: {e}", policy.name));
                     continue;
@@ -257,7 +320,9 @@ impl Service {
                 if let (Some(bk), true) = (&cfg.backup, backup_set.contains(&policy.name)) {
                     if bk.auto {
                         match backup::backup_dataset(b, bk, &policy.name) {
-                            Ok(r) => log.push(format!("backup {} -> {} ok", policy.name, r.destination)),
+                            Ok(r) => {
+                                log.push(format!("backup {} -> {} ok", policy.name, r.destination))
+                            }
                             Err(e) => log.push(format!("backup {} failed: {e}", policy.name)),
                         }
                     }
@@ -290,7 +355,13 @@ mod tests {
                 name: "zroot/home".into(),
                 recursive: true,
                 every: "1h".into(),
-                keep: Keep { hourly: 2, daily: 1, weekly: 0, monthly: 0, yearly: 0 },
+                keep: Keep {
+                    hourly: 2,
+                    daily: 1,
+                    weekly: 0,
+                    monthly: 0,
+                    yearly: 0,
+                },
             }],
             backup: None,
         };
@@ -301,7 +372,11 @@ mod tests {
     fn tick_snapshots_and_prunes() {
         let s = service();
         let log = s.tick(time::now());
-        assert!(log.iter().any(|l| l.starts_with("snapshot zroot/home@freebsd-timeline-auto-")), "{log:?}");
+        assert!(
+            log.iter()
+                .any(|l| l.starts_with("snapshot zroot/home@freebsd-timeline-auto-")),
+            "{log:?}"
+        );
         assert!(log.iter().any(|l| l.starts_with("prune ")), "{log:?}");
         // A second tick right away takes no new snapshot.
         let log2 = s.tick(time::now());
@@ -311,9 +386,17 @@ mod tests {
     #[test]
     fn auto_label_reserved() {
         let s = service();
-        let r = s.handle(Request::CreateSnapshot { dataset: "zroot/home".into(), label: Some("auto".into()), recursive: false });
+        let r = s.handle(Request::CreateSnapshot {
+            dataset: "zroot/home".into(),
+            label: Some("auto".into()),
+            recursive: false,
+        });
         assert!(!r.ok);
-        let r = s.handle(Request::CreateSnapshot { dataset: "zroot/home".into(), label: None, recursive: false });
+        let r = s.handle(Request::CreateSnapshot {
+            dataset: "zroot/home".into(),
+            label: None,
+            recursive: false,
+        });
         assert!(r.ok, "{:?}", r.error);
     }
 
@@ -324,10 +407,19 @@ mod tests {
         assert_eq!(r.len(), 1);
         assert!(r[0].ok, "{:?}", r[0]);
         let ds = s.backend().list_datasets().unwrap();
-        assert!(ds.iter().filter(|d| d.encrypted).all(|d| !d.key_loaded && !d.mounted));
-        let bad = s.handle(Request::Unlock { dataset: "zroot/home".into(), passphrase: "nope".into() });
+        assert!(ds
+            .iter()
+            .filter(|d| d.encrypted)
+            .all(|d| !d.key_loaded && !d.mounted));
+        let bad = s.handle(Request::Unlock {
+            dataset: "zroot/home".into(),
+            passphrase: "nope".into(),
+        });
         assert!(!bad.ok);
-        let good = s.handle(Request::Unlock { dataset: "zroot/home".into(), passphrase: "freebsd-timeline".into() });
+        let good = s.handle(Request::Unlock {
+            dataset: "zroot/home".into(),
+            passphrase: "freebsd-timeline".into(),
+        });
         assert!(good.ok);
     }
 
@@ -339,6 +431,8 @@ mod tests {
         let st: Status = serde_json::from_value(r.data).unwrap();
         assert_eq!(st.backend, "mock");
         assert!(st.managed > 0);
-        let _: Vec<Snapshot> = serde_json::from_value(s.handle(Request::ListSnapshots { dataset: None }).data).unwrap();
+        let _: Vec<Snapshot> =
+            serde_json::from_value(s.handle(Request::ListSnapshots { dataset: None }).data)
+                .unwrap();
     }
 }

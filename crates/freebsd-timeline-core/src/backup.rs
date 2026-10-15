@@ -21,7 +21,11 @@ pub struct BackupReport {
     pub up_to_date: bool,
 }
 
-pub fn backup_dataset(backend: &dyn Backend, cfg: &BackupConfig, dataset: &str) -> Result<BackupReport> {
+pub fn backup_dataset(
+    backend: &dyn Backend,
+    cfg: &BackupConfig,
+    dataset: &str,
+) -> Result<BackupReport> {
     names::validate_dataset(dataset)?;
     let dest = cfg.remote_dest(dataset);
 
@@ -32,7 +36,10 @@ pub fn backup_dataset(backend: &dyn Backend, cfg: &BackupConfig, dataset: &str) 
         .collect();
     local.sort_by_key(|s| s.created);
     let latest = local.last().cloned().ok_or_else(|| {
-        Error::new(ErrorKind::NotFound, format!("{dataset} has no freebsd-timeline snapshots yet; take one first"))
+        Error::new(
+            ErrorKind::NotFound,
+            format!("{dataset} has no freebsd-timeline snapshots yet; take one first"),
+        )
     })?;
 
     let remote = backend.remote_snapshots(&cfg.target, &dest)?;
@@ -57,7 +64,12 @@ pub fn backup_dataset(backend: &dyn Backend, cfg: &BackupConfig, dataset: &str) 
         ));
     }
     let base_full = base.map(|s| s.full_name());
-    backend.send_snapshot(&latest.full_name(), base_full.as_deref(), &cfg.target, &dest)?;
+    backend.send_snapshot(
+        &latest.full_name(),
+        base_full.as_deref(),
+        &cfg.target,
+        &dest,
+    )?;
     report.base = base.map(|s| s.name.clone());
     Ok(report)
 }
@@ -70,7 +82,12 @@ mod tests {
     #[test]
     fn full_then_incremental_then_noop() {
         let m = MockBackend::new();
-        let cfg = BackupConfig { target: "backuphost".into(), dest: "tank/bk".into(), datasets: vec![], auto: false };
+        let cfg = BackupConfig {
+            target: "backuphost".into(),
+            dest: "tank/bk".into(),
+            datasets: vec![],
+            auto: false,
+        };
 
         let r1 = backup_dataset(&m, &cfg, "zroot/home").unwrap();
         assert!(r1.base.is_none() && !r1.up_to_date);
@@ -78,7 +95,12 @@ mod tests {
         let r2 = backup_dataset(&m, &cfg, "zroot/home").unwrap();
         assert!(r2.up_to_date);
 
-        m.create_snapshot("zroot/home", &names::managed_name("manual", crate::time::now() + 5), false).unwrap();
+        m.create_snapshot(
+            "zroot/home",
+            &names::managed_name("manual", crate::time::now() + 5),
+            false,
+        )
+        .unwrap();
         let r3 = backup_dataset(&m, &cfg, "zroot/home").unwrap();
         assert_eq!(r3.base.as_deref(), Some(r1.snapshot.as_str()));
     }

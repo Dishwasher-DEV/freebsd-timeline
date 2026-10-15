@@ -16,7 +16,10 @@ pub const AUTO_LABEL: &str = "auto";
 const MAX_NAME: usize = 255;
 
 fn invalid(what: &str, name: &str, why: &str) -> Error {
-    Error::new(ErrorKind::InvalidName, format!("invalid {what} {name:?}: {why}"))
+    Error::new(
+        ErrorKind::InvalidName,
+        format!("invalid {what} {name:?}: {why}"),
+    )
 }
 
 fn component_char(c: char) -> bool {
@@ -31,7 +34,11 @@ fn check_component(what: &str, full: &str, comp: &str) -> Result<()> {
         return Err(invalid(what, full, "'.' and '..' are not allowed"));
     }
     if let Some(c) = comp.chars().find(|c| !component_char(*c)) {
-        return Err(invalid(what, full, &format!("character {c:?} is not allowed")));
+        return Err(invalid(
+            what,
+            full,
+            &format!("character {c:?} is not allowed"),
+        ));
     }
     Ok(())
 }
@@ -81,7 +88,11 @@ pub fn validate_label(label: &str) -> Result<()> {
         .chars()
         .find(|c| !(c.is_ascii_alphanumeric() || matches!(c, '_' | '-')))
     {
-        return Err(invalid("label", label, &format!("character {c:?} is not allowed")));
+        return Err(invalid(
+            "label",
+            label,
+            &format!("character {c:?} is not allowed"),
+        ));
     }
     Ok(())
 }
@@ -97,7 +108,11 @@ pub fn validate_boot_env(name: &str) -> Result<()> {
         .chars()
         .find(|c| !(c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.')))
     {
-        return Err(invalid("boot environment", name, &format!("character {c:?} is not allowed")));
+        return Err(invalid(
+            "boot environment",
+            name,
+            &format!("character {c:?} is not allowed"),
+        ));
     }
     Ok(())
 }
@@ -107,7 +122,8 @@ pub fn validate_ssh_target(target: &str) -> Result<()> {
     let ok_part = |s: &str| {
         !s.is_empty()
             && !s.starts_with('-')
-            && s.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
+            && s.chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
     };
     let valid = match target.split_once('@') {
         Some((user, host)) => ok_part(user) && ok_part(host),

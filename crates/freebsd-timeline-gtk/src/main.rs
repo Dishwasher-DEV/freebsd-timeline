@@ -8,7 +8,9 @@ use adw::prelude::*;
 use gtk::{gio, glib};
 
 use freebsd_timeline_core::client::Client;
-use freebsd_timeline_core::model::{ActionResult, BootEnv, Change, Dataset, DiffEntry, PoolHealth, Snapshot, Status};
+use freebsd_timeline_core::model::{
+    ActionResult, BootEnv, Change, Dataset, DiffEntry, PoolHealth, Snapshot, Status,
+};
 use freebsd_timeline_core::protocol::Request;
 use freebsd_timeline_core::time::{self, relative, Utc};
 use freebsd_timeline_core::util::human_size;
@@ -81,7 +83,10 @@ struct Page {
 
 impl Page {
     fn new() -> Self {
-        Page { page: adw::PreferencesPage::new(), groups: RefCell::new(Vec::new()) }
+        Page {
+            page: adw::PreferencesPage::new(),
+            groups: RefCell::new(Vec::new()),
+        }
     }
 
     fn add(&self, group: &adw::PreferencesGroup) {
@@ -114,13 +119,19 @@ fn icon_button(icon: &str, tooltip: &str) -> gtk::Button {
 }
 
 fn row(title: &str, subtitle: &str) -> adw::ActionRow {
-    let r = adw::ActionRow::builder().title(title).subtitle(subtitle).build();
+    let r = adw::ActionRow::builder()
+        .title(title)
+        .subtitle(subtitle)
+        .build();
     r.set_use_markup(false);
     r
 }
 
 fn tag(text: &str) -> gtk::Label {
-    gtk::Label::builder().label(text).valign(gtk::Align::Center).build()
+    gtk::Label::builder()
+        .label(text)
+        .valign(gtk::Align::Center)
+        .build()
 }
 
 fn day_heading(t: i64, now: i64) -> String {
@@ -140,15 +151,39 @@ impl Ui {
         let health = Page::new();
 
         let stack = adw::ViewStack::new();
-        stack.add_titled_with_icon(&timeline.page, Some("timeline"), "Timeline", "document-open-recent-symbolic");
-        stack.add_titled_with_icon(&boot_envs.page, Some("boot"), "Boot Environments", "system-reboot-symbolic");
-        stack.add_titled_with_icon(&health.page, Some("health"), "Health", "drive-harddisk-symbolic");
+        stack.add_titled_with_icon(
+            &timeline.page,
+            Some("timeline"),
+            "Timeline",
+            "document-open-recent-symbolic",
+        );
+        stack.add_titled_with_icon(
+            &boot_envs.page,
+            Some("boot"),
+            "Boot Environments",
+            "system-reboot-symbolic",
+        );
+        stack.add_titled_with_icon(
+            &health.page,
+            Some("health"),
+            "Health",
+            "drive-harddisk-symbolic",
+        );
 
-        let switcher = adw::ViewSwitcher::builder().stack(&stack).policy(adw::ViewSwitcherPolicy::Wide).build();
+        let switcher = adw::ViewSwitcher::builder()
+            .stack(&stack)
+            .policy(adw::ViewSwitcherPolicy::Wide)
+            .build();
         let header = adw::HeaderBar::builder().title_widget(&switcher).build();
-        let snap_button = gtk::Button::builder().label("Snapshot").tooltip_text("Take a snapshot now").build();
+        let snap_button = gtk::Button::builder()
+            .label("Snapshot")
+            .tooltip_text("Take a snapshot now")
+            .build();
         header.pack_start(&snap_button);
-        let refresh_button = gtk::Button::builder().icon_name("view-refresh-symbolic").tooltip_text("Refresh").build();
+        let refresh_button = gtk::Button::builder()
+            .icon_name("view-refresh-symbolic")
+            .tooltip_text("Refresh")
+            .build();
         header.pack_end(&refresh_button);
 
         let toasts = adw::ToastOverlay::new();
@@ -216,7 +251,11 @@ impl Ui {
         dialog.add_responses(&[("cancel", "Cancel"), ("yes", action)]);
         dialog.set_response_appearance(
             "yes",
-            if destructive { adw::ResponseAppearance::Destructive } else { adw::ResponseAppearance::Suggested },
+            if destructive {
+                adw::ResponseAppearance::Destructive
+            } else {
+                adw::ResponseAppearance::Suggested
+            },
         );
         dialog.set_default_response(Some("cancel"));
         dialog.set_close_response("cancel");
@@ -252,7 +291,11 @@ impl Ui {
     }
 
     fn mountpoint(&self, dataset: &str) -> Option<String> {
-        self.datasets.borrow().iter().find(|d| d.name == dataset).and_then(|d| d.mountpoint.clone())
+        self.datasets
+            .borrow()
+            .iter()
+            .find(|d| d.name == dataset)
+            .and_then(|d| d.mountpoint.clone())
     }
 
     // ---- Timeline -------------------------------------------------------
@@ -261,7 +304,9 @@ impl Ui {
     /// matching the CLI.
     fn filter_group(self: &Rc<Self>) -> adw::PreferencesGroup {
         let group = adw::PreferencesGroup::new();
-        let row = adw::SwitchRow::builder().title("Show snapshots from other tools").build();
+        let row = adw::SwitchRow::builder()
+            .title("Show snapshots from other tools")
+            .build();
         row.set_active(self.show_all.get());
         let u = self.clone();
         row.connect_active_notify(move |r| {
@@ -274,7 +319,10 @@ impl Ui {
     }
 
     fn fill_timeline(self: &Rc<Self>) {
-        let mut snaps = match self.client.call::<Vec<Snapshot>>(&Request::ListSnapshots { dataset: None }) {
+        let mut snaps = match self
+            .client
+            .call::<Vec<Snapshot>>(&Request::ListSnapshots { dataset: None })
+        {
             Ok(s) => s,
             Err(e) => return self.toast(&format!("Could not list snapshots: {e}")),
         };
@@ -299,7 +347,9 @@ impl Ui {
         for s in &snaps {
             let heading = day_heading(s.created, now);
             if group.as_ref().map_or(true, |(h, _)| *h != heading) {
-                let g = adw::PreferencesGroup::builder().title(heading.as_str()).build();
+                let g = adw::PreferencesGroup::builder()
+                    .title(heading.as_str())
+                    .build();
                 self.timeline.add(&g);
                 group = Some((heading, g));
             }
@@ -311,7 +361,12 @@ impl Ui {
     fn snapshot_row(self: &Rc<Self>, s: &Snapshot, all: &[Snapshot], now: i64) -> adw::ActionRow {
         let r = row(
             &s.name,
-            &format!("{}  ·  {}  ·  {} unique", s.dataset, relative(s.created, now), human_size(s.used)),
+            &format!(
+                "{}  ·  {}  ·  {} unique",
+                s.dataset,
+                relative(s.created, now),
+                human_size(s.used)
+            ),
         );
         let (icon, tip) = if s.is_auto() {
             ("alarm-symbolic", "Scheduled")
@@ -331,7 +386,9 @@ impl Ui {
                 let u = self.clone();
                 browse.connect_clicked(move |_| {
                     let uri = gio::File::for_path(&path).uri();
-                    if let Err(e) = gio::AppInfo::launch_default_for_uri(&uri, None::<&gio::AppLaunchContext>) {
+                    if let Err(e) =
+                        gio::AppInfo::launch_default_for_uri(&uri, None::<&gio::AppLaunchContext>)
+                    {
                         u.toast(&format!("Could not open {path}: {e}"));
                     }
                 });
@@ -345,17 +402,31 @@ impl Ui {
         diff.connect_clicked(move |_| u.diff_dialog(&full, &name));
         r.add_suffix(&diff);
 
-        let newer = all.iter().filter(|o| o.dataset == s.dataset && o.created > s.created).count();
+        let newer = all
+            .iter()
+            .filter(|o| o.dataset == s.dataset && o.created > s.created)
+            .count();
         let rollback = icon_button("edit-undo-symbolic", "Roll back to this snapshot");
         let (u, full) = (self.clone(), s.full_name());
         rollback.connect_clicked(move |_| {
-            let mut body = format!("Everything in {} changed since this snapshot will be lost.", full.split('@').next().unwrap_or(""));
+            let mut body = format!(
+                "Everything in {} changed since this snapshot will be lost.",
+                full.split('@').next().unwrap_or("")
+            );
             if newer > 0 {
-                body.push_str(&format!(" The {newer} newer snapshot(s) of this dataset will be destroyed too."));
+                body.push_str(&format!(
+                    " The {newer} newer snapshot(s) of this dataset will be destroyed too."
+                ));
             }
             let (u2, full2) = (u.clone(), full.clone());
             u.confirm("Roll back?", &body, "Roll Back", true, move || {
-                u2.act(Request::Rollback { snapshot: full2.clone(), destroy_newer: newer > 0 }, "Rolled back")
+                u2.act(
+                    Request::Rollback {
+                        snapshot: full2.clone(),
+                        destroy_newer: newer > 0,
+                    },
+                    "Rolled back",
+                )
             });
         });
         r.add_suffix(&rollback);
@@ -365,7 +436,13 @@ impl Ui {
         destroy.connect_clicked(move |_| {
             let (u2, full2) = (u.clone(), full.clone());
             u.confirm("Destroy snapshot?", &full, "Destroy", true, move || {
-                u2.act(Request::DestroySnapshot { snapshot: full2.clone(), recursive: false }, "Snapshot destroyed")
+                u2.act(
+                    Request::DestroySnapshot {
+                        snapshot: full2.clone(),
+                        recursive: false,
+                    },
+                    "Snapshot destroyed",
+                )
             });
         });
         r.add_suffix(&destroy);
@@ -373,16 +450,26 @@ impl Ui {
     }
 
     fn snapshot_dialog(self: &Rc<Self>) {
-        let names: Vec<String> =
-            self.datasets.borrow().iter().filter(|d| d.mountpoint.is_some()).map(|d| d.name.clone()).collect();
+        let names: Vec<String> = self
+            .datasets
+            .borrow()
+            .iter()
+            .filter(|d| d.mountpoint.is_some())
+            .map(|d| d.name.clone())
+            .collect();
         if names.is_empty() {
             return self.toast("No mounted datasets to snapshot");
         }
         let strs: Vec<&str> = names.iter().map(String::as_str).collect();
         let dropdown = gtk::DropDown::from_strings(&strs);
-        let entry = gtk::Entry::builder().placeholder_text("Label (optional), e.g. before-rice-v4").build();
+        let entry = gtk::Entry::builder()
+            .placeholder_text("Label (optional), e.g. before-rice-v4")
+            .build();
         let recursive = gtk::CheckButton::with_label("Include child datasets");
-        let content = gtk::Box::builder().orientation(gtk::Orientation::Vertical).spacing(12).build();
+        let content = gtk::Box::builder()
+            .orientation(gtk::Orientation::Vertical)
+            .spacing(12)
+            .build();
         content.append(&dropdown);
         content.append(&entry);
         content.append(&recursive);
@@ -398,20 +485,34 @@ impl Ui {
             if resp != "snap" {
                 return;
             }
-            let Some(dataset) = names.get(dropdown.selected() as usize).cloned() else { return };
+            let Some(dataset) = names.get(dropdown.selected() as usize).cloned() else {
+                return;
+            };
             let text = entry.text().trim().to_string();
             let label = (!text.is_empty()).then_some(text);
-            u.act(Request::CreateSnapshot { dataset, label, recursive: recursive.is_active() }, "Snapshot taken");
+            u.act(
+                Request::CreateSnapshot {
+                    dataset,
+                    label,
+                    recursive: recursive.is_active(),
+                },
+                "Snapshot taken",
+            );
         });
         dialog.present(Some(&self.window));
     }
 
     fn diff_dialog(self: &Rc<Self>, full: &str, name: &str) {
-        let entries = match self.client.call::<Vec<DiffEntry>>(&Request::Diff { from: full.into(), to: None }) {
+        let entries = match self.client.call::<Vec<DiffEntry>>(&Request::Diff {
+            from: full.into(),
+            to: None,
+        }) {
             Ok(e) => e,
             Err(e) => return self.toast(&format!("Diff failed: {e}")),
         };
-        let list = gtk::ListBox::builder().selection_mode(gtk::SelectionMode::None).build();
+        let list = gtk::ListBox::builder()
+            .selection_mode(gtk::SelectionMode::None)
+            .build();
         list.add_css_class("boxed-list");
         for e in &entries {
             let title = match e.change {
@@ -433,7 +534,11 @@ impl Ui {
             .min_content_width(520)
             .child(&list)
             .build();
-        let body = if entries.is_empty() { "Nothing has changed." } else { "" };
+        let body = if entries.is_empty() {
+            "Nothing has changed."
+        } else {
+            ""
+        };
         let dialog = adw::AlertDialog::new(Some(&format!("Changes since {name}")), Some(body));
         if !entries.is_empty() {
             dialog.set_extra_child(Some(&scroll));
@@ -462,10 +567,19 @@ impl Ui {
             .title("Boot Environments")
             .description("Bootable copies of the whole system. Make one before upgrading; if the upgrade goes wrong, boot the old one.")
             .build();
-        let create = gtk::Button::builder().label("Create").valign(gtk::Align::Center).build();
+        let create = gtk::Button::builder()
+            .label("Create")
+            .valign(gtk::Align::Center)
+            .build();
         let u = self.clone();
         create.connect_clicked(move |_| {
-            u.act(Request::CreateBootEnv { name: None, label: Some("manual".into()) }, "Boot environment created")
+            u.act(
+                Request::CreateBootEnv {
+                    name: None,
+                    label: Some("manual".into()),
+                },
+                "Boot environment created",
+            )
         });
         group.set_header_suffix(Some(&create));
 
@@ -477,7 +591,10 @@ impl Ui {
             if b.active_on_reboot {
                 r.add_suffix(&tag("Next boot"));
             } else {
-                let activate = gtk::Button::builder().label("Boot Next").valign(gtk::Align::Center).build();
+                let activate = gtk::Button::builder()
+                    .label("Boot Next")
+                    .valign(gtk::Align::Center)
+                    .build();
                 activate.add_css_class("flat");
                 let (u, name) = (self.clone(), b.name.clone());
                 activate.connect_clicked(move |_| {
@@ -487,7 +604,15 @@ impl Ui {
                         &format!("{name} will be used from the next reboot on."),
                         "Activate",
                         false,
-                        move || u2.act(Request::ActivateBootEnv { name: name2.clone(), temporary: false }, "Will boot next"),
+                        move || {
+                            u2.act(
+                                Request::ActivateBootEnv {
+                                    name: name2.clone(),
+                                    temporary: false,
+                                },
+                                "Will boot next",
+                            )
+                        },
                     );
                 });
                 r.add_suffix(&activate);
@@ -497,9 +622,20 @@ impl Ui {
                 let (u, name) = (self.clone(), b.name.clone());
                 destroy.connect_clicked(move |_| {
                     let (u2, name2) = (u.clone(), name.clone());
-                    u.confirm("Destroy boot environment?", &name, "Destroy", true, move || {
-                        u2.act(Request::DestroyBootEnv { name: name2.clone() }, "Boot environment destroyed")
-                    });
+                    u.confirm(
+                        "Destroy boot environment?",
+                        &name,
+                        "Destroy",
+                        true,
+                        move || {
+                            u2.act(
+                                Request::DestroyBootEnv {
+                                    name: name2.clone(),
+                                },
+                                "Boot environment destroyed",
+                            )
+                        },
+                    );
                 });
                 r.add_suffix(&destroy);
             }
@@ -527,29 +663,42 @@ impl Ui {
             .title("Encryption")
             .description("Locking unmounts datasets and drops their keys.")
             .build();
-        let lock_all = gtk::Button::builder().label("Lock All").valign(gtk::Align::Center).build();
+        let lock_all = gtk::Button::builder()
+            .label("Lock All")
+            .valign(gtk::Align::Center)
+            .build();
         let u = self.clone();
-        lock_all.connect_clicked(move |_| match u.client.call::<Vec<ActionResult>>(&Request::LockAll) {
-            Ok(r) => {
-                u.report(&r, "Encrypted datasets locked");
-                u.refresh();
+        lock_all.connect_clicked(move |_| {
+            match u.client.call::<Vec<ActionResult>>(&Request::LockAll) {
+                Ok(r) => {
+                    u.report(&r, "Encrypted datasets locked");
+                    u.refresh();
+                }
+                Err(e) => u.toast(&format!("Lock failed: {e}")),
             }
-            Err(e) => u.toast(&format!("Lock failed: {e}")),
         });
         group.set_header_suffix(Some(&lock_all));
 
         let datasets = self.datasets.borrow();
-        let roots: Vec<&Dataset> =
-            datasets.iter().filter(|d| d.encrypted && d.encryption_root.as_deref() == Some(d.name.as_str())).collect();
+        let roots: Vec<&Dataset> = datasets
+            .iter()
+            .filter(|d| d.encrypted && d.encryption_root.as_deref() == Some(d.name.as_str()))
+            .collect();
         if roots.is_empty() {
-            group.add(&row("No encrypted datasets", "Create one with zfs create -o encryption=on"));
+            group.add(&row(
+                "No encrypted datasets",
+                "Create one with zfs create -o encryption=on",
+            ));
         }
         for d in roots {
             let r = row(&d.name, d.mountpoint.as_deref().unwrap_or("not mounted"));
             if d.key_loaded {
                 r.add_suffix(&tag("Unlocked"));
             } else {
-                let unlock = gtk::Button::builder().label("Unlock").valign(gtk::Align::Center).build();
+                let unlock = gtk::Button::builder()
+                    .label("Unlock")
+                    .valign(gtk::Align::Center)
+                    .build();
                 let (u, name) = (self.clone(), d.name.clone());
                 unlock.connect_clicked(move |_| u.unlock_dialog(&name));
                 r.add_suffix(&tag("Locked"));
@@ -561,8 +710,14 @@ impl Ui {
     }
 
     fn unlock_dialog(self: &Rc<Self>, dataset: &str) {
-        let entry = gtk::PasswordEntry::builder().show_peek_icon(true).activates_default(true).build();
-        let dialog = adw::AlertDialog::new(Some(&format!("Unlock {dataset}")), Some("Enter the dataset's passphrase."));
+        let entry = gtk::PasswordEntry::builder()
+            .show_peek_icon(true)
+            .activates_default(true)
+            .build();
+        let dialog = adw::AlertDialog::new(
+            Some(&format!("Unlock {dataset}")),
+            Some("Enter the dataset's passphrase."),
+        );
         dialog.set_extra_child(Some(&entry));
         dialog.add_responses(&[("cancel", "Cancel"), ("unlock", "Unlock")]);
         dialog.set_response_appearance("unlock", adw::ResponseAppearance::Suggested);
@@ -573,7 +728,13 @@ impl Ui {
             if resp == "unlock" {
                 let passphrase = entry.text().to_string();
                 entry.set_text("");
-                u.act(Request::Unlock { dataset: name.clone(), passphrase }, "Unlocked");
+                u.act(
+                    Request::Unlock {
+                        dataset: name.clone(),
+                        passphrase,
+                    },
+                    "Unlocked",
+                );
             }
         });
         dialog.present(Some(&self.window));
@@ -585,19 +746,26 @@ impl Ui {
             .description("Incremental ZFS sends over SSH to a machine you own. Encrypted datasets stay encrypted on the other end.")
             .build();
         match &status.backup_target {
-            None => group.add(&row("Not configured", "Add a [backup] section to freebsd-timeline.toml")),
+            None => group.add(&row(
+                "Not configured",
+                "Add a [backup] section to freebsd-timeline.toml",
+            )),
             Some(target) => {
                 let r = row(target, "SSH target");
-                let run = gtk::Button::builder().label("Back Up Now").valign(gtk::Align::Center).build();
+                let run = gtk::Button::builder()
+                    .label("Back Up Now")
+                    .valign(gtk::Align::Center)
+                    .build();
                 let u = self.clone();
                 run.connect_clicked(move |button| {
                     button.set_sensitive(false);
                     u.toast("Backup started");
                     let (u, button, client) = (u.clone(), button.clone(), u.client.clone());
                     glib::spawn_future_local(async move {
-                        let res =
-                            gio::spawn_blocking(move || client.call::<Vec<ActionResult>>(&Request::Backup { dataset: None }))
-                                .await;
+                        let res = gio::spawn_blocking(move || {
+                            client.call::<Vec<ActionResult>>(&Request::Backup { dataset: None })
+                        })
+                        .await;
                         match res {
                             Ok(Ok(r)) => u.report(&r, "Backup finished"),
                             Ok(Err(e)) => u.toast(&format!("Backup failed: {e}")),
@@ -615,15 +783,33 @@ impl Ui {
 }
 
 fn pool_group(p: &PoolHealth) -> adw::PreferencesGroup {
-    let group = adw::PreferencesGroup::builder().title(format!("Pool {}", p.name)).build();
+    let group = adw::PreferencesGroup::builder()
+        .title(format!("Pool {}", p.name))
+        .build();
 
     let state = row("State", &p.health);
-    let icon = if p.is_healthy() { "emblem-ok-symbolic" } else { "dialog-warning-symbolic" };
+    let icon = if p.is_healthy() {
+        "emblem-ok-symbolic"
+    } else {
+        "dialog-warning-symbolic"
+    };
     state.add_suffix(&gtk::Image::from_icon_name(icon));
     group.add(&state);
 
-    let usage = row("Space", &format!("{} used of {}, {} free", human_size(p.alloc), human_size(p.size), human_size(p.free)));
-    let fraction = if p.size > 0 { p.alloc as f64 / p.size as f64 } else { 0.0 };
+    let usage = row(
+        "Space",
+        &format!(
+            "{} used of {}, {} free",
+            human_size(p.alloc),
+            human_size(p.size),
+            human_size(p.free)
+        ),
+    );
+    let fraction = if p.size > 0 {
+        p.alloc as f64 / p.size as f64
+    } else {
+        0.0
+    };
     let bar = gtk::LevelBar::builder()
         .min_value(0.0)
         .max_value(1.0)

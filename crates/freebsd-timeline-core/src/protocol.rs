@@ -99,11 +99,19 @@ pub struct Response {
 
 impl Response {
     pub fn ok(data: impl Serialize) -> Self {
-        Response { ok: true, data: serde_json::to_value(data).unwrap_or(Value::Null), error: None }
+        Response {
+            ok: true,
+            data: serde_json::to_value(data).unwrap_or(Value::Null),
+            error: None,
+        }
     }
 
     pub fn err(message: impl Into<String>) -> Self {
-        Response { ok: false, data: Value::Null, error: Some(message.into()) }
+        Response {
+            ok: false,
+            data: Value::Null,
+            error: Some(message.into()),
+        }
     }
 }
 
@@ -113,14 +121,25 @@ mod tests {
 
     #[test]
     fn roundtrip() {
-        let r: Request = serde_json::from_str(r#"{"op":"create_snapshot","dataset":"zroot/home"}"#).unwrap();
-        assert!(matches!(r, Request::CreateSnapshot { recursive: false, label: None, .. }));
+        let r: Request =
+            serde_json::from_str(r#"{"op":"create_snapshot","dataset":"zroot/home"}"#).unwrap();
+        assert!(matches!(
+            r,
+            Request::CreateSnapshot {
+                recursive: false,
+                label: None,
+                ..
+            }
+        ));
         assert!(serde_json::from_str::<Request>(r#"{"op":"rm_rf"}"#).is_err());
     }
 
     #[test]
     fn describe_hides_passphrase() {
-        let r = Request::Unlock { dataset: "zroot/home".into(), passphrase: "hunter2".into() };
+        let r = Request::Unlock {
+            dataset: "zroot/home".into(),
+            passphrase: "hunter2".into(),
+        };
         assert!(!r.describe().contains("hunter2"));
     }
 }

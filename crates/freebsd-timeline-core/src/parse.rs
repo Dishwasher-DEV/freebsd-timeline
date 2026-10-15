@@ -4,7 +4,10 @@ use crate::error::{Error, ErrorKind, Result};
 use crate::model::{BootEnv, Change, Dataset, DiffEntry, PoolHealth, Snapshot};
 
 fn parse_err(what: &str, line: &str) -> Error {
-    Error::new(ErrorKind::Parse, format!("unexpected {what} output: {line:?}"))
+    Error::new(
+        ErrorKind::Parse,
+        format!("unexpected {what} output: {line:?}"),
+    )
 }
 
 fn lines(out: &str) -> impl Iterator<Item = &str> {
@@ -33,7 +36,9 @@ pub fn snapshots(out: &str) -> Result<Vec<Snapshot>> {
             if f.len() != 4 {
                 return Err(parse_err("zfs list", line));
             }
-            let (dataset, name) = f[0].split_once('@').ok_or_else(|| parse_err("zfs list", line))?;
+            let (dataset, name) = f[0]
+                .split_once('@')
+                .ok_or_else(|| parse_err("zfs list", line))?;
             Ok(Snapshot {
                 dataset: dataset.to_string(),
                 name: name.to_string(),
@@ -132,13 +137,24 @@ pub fn diff(out: &str) -> Result<Vec<DiffEntry>> {
                 Some("R") => Change::Renamed,
                 _ => return Err(parse_err("zfs diff", line)),
             };
-            let path = f.get(1).ok_or_else(|| parse_err("zfs diff", line))?.to_string();
+            let path = f
+                .get(1)
+                .ok_or_else(|| parse_err("zfs diff", line))?
+                .to_string();
             let new_path = if change == Change::Renamed {
-                Some(f.get(2).ok_or_else(|| parse_err("zfs diff", line))?.to_string())
+                Some(
+                    f.get(2)
+                        .ok_or_else(|| parse_err("zfs diff", line))?
+                        .to_string(),
+                )
             } else {
                 None
             };
-            Ok(DiffEntry { change, path, new_path })
+            Ok(DiffEntry {
+                change,
+                path,
+                new_path,
+            })
         })
         .collect()
 }

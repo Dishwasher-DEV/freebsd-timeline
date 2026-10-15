@@ -73,18 +73,36 @@ mod tests {
     use crate::names::managed_name;
 
     fn snap(ds: &str, label: &str, t: i64) -> Snapshot {
-        Snapshot { dataset: ds.into(), name: managed_name(label, t), created: t, used: 0, referenced: 0 }
+        Snapshot {
+            dataset: ds.into(),
+            name: managed_name(label, t),
+            created: t,
+            used: 0,
+            referenced: 0,
+        }
     }
 
     const NOW: i64 = 1_800_000_000;
 
     #[test]
     fn hourly_for_three_days() {
-        let snaps: Vec<_> = (0..72).map(|h| snap("zroot/home", "auto", NOW - h * 3600)).collect();
-        let keep = Keep { hourly: 24, daily: 7, weekly: 0, monthly: 0, yearly: 0 };
+        let snaps: Vec<_> = (0..72)
+            .map(|h| snap("zroot/home", "auto", NOW - h * 3600))
+            .collect();
+        let keep = Keep {
+            hourly: 24,
+            daily: 7,
+            weekly: 0,
+            monthly: 0,
+            yearly: 0,
+        };
         let p = plan(&snaps, &keep, NOW);
         // 24 hourly + newest of the 2 older days (the third day overlaps the hourly window)
-        assert!(p.keep.len() >= 24 && p.keep.len() <= 27, "kept {}", p.keep.len());
+        assert!(
+            p.keep.len() >= 24 && p.keep.len() <= 27,
+            "kept {}",
+            p.keep.len()
+        );
         assert_eq!(p.keep.len() + p.destroy.len(), 72);
     }
 
@@ -93,9 +111,21 @@ mod tests {
         let snaps = vec![
             snap("zroot/home", "manual", NOW - 90 * 86400),
             snap("zroot/home", "pre-upgrade", NOW - 90 * 86400),
-            Snapshot { dataset: "zroot/home".into(), name: "mine".into(), created: 0, used: 0, referenced: 0 },
+            Snapshot {
+                dataset: "zroot/home".into(),
+                name: "mine".into(),
+                created: 0,
+                used: 0,
+                referenced: 0,
+            },
         ];
-        let keep = Keep { hourly: 0, daily: 0, weekly: 0, monthly: 0, yearly: 0 };
+        let keep = Keep {
+            hourly: 0,
+            daily: 0,
+            weekly: 0,
+            monthly: 0,
+            yearly: 0,
+        };
         let p = plan(&snaps, &keep, NOW);
         assert!(p.destroy.is_empty());
     }
@@ -107,7 +137,13 @@ mod tests {
             snap("zroot/home", "auto", NOW - 120),
             snap("zroot/home", "auto", NOW - 100 * 86400),
         ];
-        let keep = Keep { hourly: 0, daily: 0, weekly: 0, monthly: 0, yearly: 0 };
+        let keep = Keep {
+            hourly: 0,
+            daily: 0,
+            weekly: 0,
+            monthly: 0,
+            yearly: 0,
+        };
         let p = plan(&snaps, &keep, NOW);
         assert_eq!(p.keep.len(), 2);
         assert_eq!(p.destroy.len(), 1);
@@ -116,7 +152,10 @@ mod tests {
 
     #[test]
     fn datasets_are_independent() {
-        let snaps = vec![snap("a", "auto", NOW - 50 * 86400), snap("b", "auto", NOW - 60 * 86400)];
+        let snaps = vec![
+            snap("a", "auto", NOW - 50 * 86400),
+            snap("b", "auto", NOW - 60 * 86400),
+        ];
         let p = plan(&snaps, &Keep::default(), NOW);
         assert_eq!(p.keep.len(), 2);
     }

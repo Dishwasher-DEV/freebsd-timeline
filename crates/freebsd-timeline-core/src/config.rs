@@ -44,7 +44,13 @@ pub struct Keep {
 
 impl Default for Keep {
     fn default() -> Self {
-        Keep { hourly: 24, daily: 7, weekly: 4, monthly: 6, yearly: 0 }
+        Keep {
+            hourly: 24,
+            daily: 7,
+            weekly: 4,
+            monthly: 6,
+            yearly: 0,
+        }
     }
 }
 
@@ -71,7 +77,12 @@ impl BackupConfig {
 
 /// `15m`, `1h`, `2d`, `1w` -> seconds.
 pub fn parse_duration(s: &str) -> Result<i64> {
-    let bad = || Error::new(ErrorKind::Config, format!("invalid duration {s:?} (try 15m, 1h, 1d)"));
+    let bad = || {
+        Error::new(
+            ErrorKind::Config,
+            format!("invalid duration {s:?} (try 15m, 1h, 1d)"),
+        )
+    };
     let s = s.trim();
     let split = s.find(|c: char| !c.is_ascii_digit()).ok_or_else(bad)?;
     let (n, unit) = s.split_at(split);
@@ -117,7 +128,10 @@ impl Config {
             if parse_duration(&ds.every)? < 300 {
                 return Err(Error::new(
                     ErrorKind::Config,
-                    format!("{}: snapshots more often than every 5m are not supported", ds.name),
+                    format!(
+                        "{}: snapshots more often than every 5m are not supported",
+                        ds.name
+                    ),
                 ));
             }
         }
@@ -169,12 +183,19 @@ mod tests {
     fn rejects_bad_names() {
         assert!(Config::parse("[[dataset]]\nname = \"-R\"\n").is_err());
         assert!(Config::parse("[[dataset]]\nname = \"zroot\"\nevery = \"1m\"\n").is_err());
-        assert!(Config::parse("[backup]\ntarget = \"-oProxyCommand=x\"\ndest = \"tank\"\n").is_err());
+        assert!(
+            Config::parse("[backup]\ntarget = \"-oProxyCommand=x\"\ndest = \"tank\"\n").is_err()
+        );
     }
 
     #[test]
     fn remote_dest() {
-        let b = BackupConfig { target: "backuphost".into(), dest: "tank/bk".into(), datasets: vec![], auto: false };
+        let b = BackupConfig {
+            target: "backuphost".into(),
+            dest: "tank/bk".into(),
+            datasets: vec![],
+            auto: false,
+        };
         assert_eq!(b.remote_dest("zroot/home"), "tank/bk/zroot_home");
     }
 }

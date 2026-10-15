@@ -1,0 +1,17 @@
+[Unit]
+Description=freebsd-timeline ZFS snapshot daemon
+After=zfs.target
+Requires=zfs.target
+
+[Service]
+ExecStartPre=/usr/local/sbin/freebsd-timelined --check-config
+ExecStart=/usr/local/sbin/freebsd-timelined
+Environment=FREEBSD_TIMELINE_CONFIG=/etc/freebsd-timeline.toml
+Environment=FREEBSD_TIMELINE_SOCKET=/run/freebsd-timelined.sock
+Restart=on-failure
+NoNewPrivileges=yes
+ProtectHome=read-only
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

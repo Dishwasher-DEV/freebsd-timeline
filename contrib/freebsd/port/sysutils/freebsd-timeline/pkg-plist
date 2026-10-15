@@ -1,0 +1,5 @@
+bin/freebsd-timeline
+%%GUI%%bin/freebsd-timeline-gtk
+@sample etc/freebsd-timeline.toml.sample
+sbin/freebsd-timelined
+%%GUI%%share/applications/io.github.Dishwasher_DEV.FreebsdTimeline.desktop

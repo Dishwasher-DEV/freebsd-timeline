@@ -1,0 +1,13 @@
+[package]
+name = "freebsd-timeline-core"
+description = "Core library for freebsd-timeline: ZFS snapshots, boot environments, retention and backups"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true

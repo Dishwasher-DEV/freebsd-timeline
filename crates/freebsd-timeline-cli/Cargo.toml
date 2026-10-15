@@ -1,0 +1,19 @@
+[package]
+name = "freebsd-timeline-cli"
+description = "Command-line interface for freebsd-timeline"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "freebsd-timeline"
+path = "src/main.rs"
+
+[dependencies]
+freebsd-timeline-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+clap.workspace = true
+rpassword.workspace = true

@@ -1,0 +1,10 @@
+freebsd-timeline manages ZFS snapshots, boot environments and backups.
+
+A small root daemon takes snapshots on a schedule and prunes them with
+hourly, daily, weekly and monthly retention. A CLI and a GTK4/libadwaita
+desktop app show every snapshot on a timeline and can browse, diff and roll
+back to any of them, manage bectl boot environments, report pool health,
+lock encrypted datasets, and send raw incremental backups over SSH to a
+machine you own.
+
+freebsd-timeline has no accounts, no telemetry and opens no network ports.

@@ -1,0 +1,42 @@
+# freebsd-timeline configuration
+# FreeBSD: /usr/local/etc/freebsd-timeline.toml    Linux: /etc/freebsd-timeline.toml
+#
+# freebsd-timeline needs no account, no license key and no internet connection.
+# The only network traffic it ever makes is the SSH backup below, to a
+# machine you own, and only if you configure it.
+
+# Snapshot your home directories every hour.
+[[dataset]]
+name = "zroot/home"
+recursive = true        # include zroot/home/<user> in the same snapshot
+every = "1h"            # 15m, 1h, 6h, 1d, 1w ...
+
+# How many automatic snapshots to keep. Manual snapshots
+# ("freebsd-timeline snap") and pre-upgrade snapshots are never pruned.
+[dataset.keep]
+hourly = 24
+daily = 7
+weekly = 4
+monthly = 6
+yearly = 0
+
+# The system itself, less often.
+[[dataset]]
+name = "zroot/ROOT/default"
+every = "1d"
+
+[dataset.keep]
+hourly = 0
+daily = 7
+weekly = 4
+monthly = 3
+
+# Optional: incremental, encrypted backups to a machine you own.
+# Uses `zfs send -w` over SSH with your normal SSH keys. Encrypted
+# datasets arrive still encrypted; the backup box never sees your key.
+#
+# [backup]
+# target = "backup@backuphost"     # host or user@host
+# dest = "tank/backups/laptop"     # parent dataset on the target
+# datasets = ["zroot/home"]        # empty = every dataset above
+# auto = true                      # send after each scheduled snapshot

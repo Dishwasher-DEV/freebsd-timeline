@@ -1,0 +1,18 @@
+[package]
+name = "freebsd-timeline-gtk"
+description = "GTK4 / libadwaita front end for freebsd-timeline"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "freebsd-timeline-gtk"
+path = "src/main.rs"
+
+[dependencies]
+freebsd-timeline-core.workspace = true
+serde_json.workspace = true
+gtk.workspace = true
+adw.workspace = true

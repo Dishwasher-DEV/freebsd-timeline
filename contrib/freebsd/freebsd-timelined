@@ -1,0 +1,37 @@
+#!/bin/sh
+
+# PROVIDE: freebsd-timelined
+# REQUIRE: LOGIN zfs
+# KEYWORD: shutdown
+#
+# Add to /etc/rc.conf to enable:
+#   freebsd_timelined_enable="YES"
+# Optional:
+#   freebsd_timelined_config="/usr/local/etc/freebsd-timeline.toml"
+
+. /etc/rc.subr
+
+name=freebsd-timelined
+rcvar=freebsd_timelined_enable
+
+load_rc_config $name
+
+: ${freebsd_timelined_enable:="NO"}
+: ${freebsd_timelined_config:="/usr/local/etc/freebsd-timeline.toml"}
+
+pidfile="/var/run/${name}.pid"
+procname="/usr/local/sbin/freebsd-timelined"
+command="/usr/sbin/daemon"
+command_args="-f -S -T ${name} -P ${pidfile} -r ${procname}"
+freebsd_timelined_env="FREEBSD_TIMELINE_CONFIG=${freebsd_timelined_config}"
+
+extra_commands="checkconfig"
+checkconfig_cmd="freebsd_timelined_checkconfig"
+start_precmd="freebsd_timelined_checkconfig"
+
+freebsd_timelined_checkconfig()
+{
+	env FREEBSD_TIMELINE_CONFIG="${freebsd_timelined_config}" ${procname} --check-config
+}
+
+run_rc_command "$1"

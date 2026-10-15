@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=freebsd-timeline
+GenericName=Snapshot Manager
+Comment=ZFS snapshots, boot environments and backups
+Exec=freebsd-timeline-gtk
+Icon=io.github.Dishwasher_DEV.FreebsdTimeline
+Terminal=false
+Categories=System;Filesystem;GTK;
+Keywords=zfs;snapshot;backup;restore;boot environment;bectl;
+StartupNotify=true
